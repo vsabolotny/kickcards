@@ -11,3 +11,10 @@ class Config:
     AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
     AWS_BUCKET_NAME = os.getenv('AWS_BUCKET_NAME')
+
+class TestingConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:' # Use in-memory SQLite for tests
+    UPLOAD_FOLDER = 'backend/app/static/uploads_test' # Example, ensure this is different from dev/prod
+    # Ensure this folder exists or is created by tests/app setup if needed
+    # Add other testing-specific configurations
