@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models.user import User
-from app import db
+from .. import db # Import the db instance from app/__init__.py
 
 class AuthService:
     @staticmethod

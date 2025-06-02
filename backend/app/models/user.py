@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String
 from flask_sqlalchemy import SQLAlchemy
 
-db = SQLAlchemy()
+from .. import db # Import the db instance from app/__init__.py
 
 class User(db.Model):
     __tablename__ = 'users'
