@@ -1,55 +1,52 @@
 from flask import Flask
-from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager  # Import JWTManager
+from flask_jwt_extended import JWTManager
+from config import Config, TestingConfig # Correctly import your configs
 import os
-from config import Config, TestingConfig # Make sure to import your configs
 
-db = SQLAlchemy()  # Define the SQLAlchemy instance globally
-jwt = JWTManager()  # Create an instance of JWTManager
-print(f"ID of db in app/__init__.py (after definition): {id(db)}")  # DIAGNOSTIC
+db = SQLAlchemy()
 
 def create_app(config_name='default'):
     app = Flask(__name__)
-
     if config_name == 'testing':
         app.config.from_object(TestingConfig)
     else:
-        app.config.from_object(Config) # Default config
+        app.config.from_object(Config)
 
-    # --- Configure JWT ---
-    # It's crucial to set a secret key for JWT.
-    # This key is used to sign the JWTs. Keep it secret in production!
-    # You can generate a good secret key using:
-    # python -c 'import secrets; print(secrets.token_hex(32))'
-    # app.config["JWT_SECRET_KEY"] = "e1d3875de77feccd01d161ff2359bae9d5cce6d6edc30d72e5d57160ba220d9f"  # CHANGE THIS!
-    # You can also configure token locations, expiration times, etc.
-    # app.config["JWT_TOKEN_LOCATION"] = ["headers"]
-    # app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
+    # Ensure upload folders exist
+    # This needs to be done after app.config is populated.
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+        print(f"Created upload folder: {app.config['UPLOAD_FOLDER']}")
 
-    # basedir = os.path.abspath(os.path.dirname(__file__))
-    # backend_dir = os.path.dirname(basedir)
-    # db_path = os.path.join(backend_dir, 'soccer_cards_app.db')
+    # For testing, UPLOAD_FOLDER is also in TestingConfig. 
+    # If tests create files, this folder should exist.
+    # The previous logic for creating uploads_test during test setup (pytest fixture or globally)
+    # might be more robust if tests run in parallel or specific test setup is needed.
+    # However, creating it here if in 'testing' mode is also an option.
+    if config_name == 'testing':
+        if not os.path.exists(app.config['UPLOAD_FOLDER']): # Which is TestingConfig.UPLOAD_FOLDER
+             os.makedirs(app.config['UPLOAD_FOLDER'])
+             print(f"Created testing upload folder: {app.config['UPLOAD_FOLDER']}")
 
-    # app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-    # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-    CORS(app)
 
     db.init_app(app)
-    jwt.init_app(app)  # Initialize JWTManager with the app
-    print(f"ID of db in app/__init__.py (after init_app): {id(db)}")  # DIAGNOSTIC
-    print(f"App instance for init_app: {id(app)}")  # DIAGNOSTIC
+    JWTManager(app)
 
-    from .routes import auth as auth_blueprint
-    from .routes import cards as cards_blueprint
-    app.register_blueprint(auth_blueprint.bp, url_prefix='/auth')
-    app.register_blueprint(cards_blueprint.bp, url_prefix='/api')
+    # Register blueprints
+    from app.routes.auth import bp as auth_bp
+    app.register_blueprint(auth_bp, url_prefix='/auth')
 
-    # Ensure db.create_all() is called only when not testing or with appropriate context
+    from app.routes.cards import bp as cards_bp
+    app.register_blueprint(cards_bp, url_prefix='/api')
+
+    # Conditional db.create_all() for non-testing environments
     if config_name != 'testing':
-        with app.app_context():
-            from . import models
-            db.create_all()
-
+        with app.app_context(): # Ensure we are within an app context for db operations
+            try:
+                db.create_all()
+                print(f"Database tables created (if they didn't exist) for URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
+            except Exception as e:
+                print(f"Error during db.create_all(): {e}")
+    
     return app
