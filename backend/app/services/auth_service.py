@@ -1,24 +1,25 @@
 from flask import request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models.user import User
-from .. import db # Import the db instance from app/__init__.py
+from app import db
 
 class AuthService:
     @staticmethod
     def register_user(email, password):
-        hashed_password = generate_password_hash(password, method='sha256')
-        new_user = User(email=email, password=hashed_password)
+        if User.query.filter_by(email=email).first():
+            return False  # User already exists
+        
+        # Let Werkzeug use its default, more secure hashing method
+        hashed_password = generate_password_hash(password) 
+        
+        new_user = User(email=email, password_hash=hashed_password)
         db.session.add(new_user)
         db.session.commit()
-        return new_user
+        return True
 
     @staticmethod
-    def login_user(email, password):
+    def authenticate_user(email, password):
         user = User.query.filter_by(email=email).first()
-        if user and check_password_hash(user.password, password):
+        if user and check_password_hash(user.password_hash, password):
             return user
         return None
-
-    @staticmethod
-    def get_user_by_id(user_id):
-        return User.query.get(user_id)

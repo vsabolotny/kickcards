@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app.models.user import User
 from app.services.auth_service import AuthService
 
@@ -12,7 +12,8 @@ def login():
     user = AuthService.authenticate_user(email, password)
     
     if user:
-        access_token = create_access_token(identity=user.id)
+        # Ensure the identity is a string
+        access_token = create_access_token(identity=str(user.id)) 
         return jsonify(access_token=access_token), 200
     return jsonify({"msg": "Bad email or password"}), 401
 
@@ -28,4 +29,7 @@ def register():
 @bp.route('/protected', methods=['GET'])
 @jwt_required()
 def protected():
+    # Example of how to get the identity back
+    # current_user_id = get_jwt_identity()
+    # user = User.query.get(current_user_id) # You might need to convert current_user_id back to int if it was stored as string
     return jsonify(msg="Access granted to protected route")
